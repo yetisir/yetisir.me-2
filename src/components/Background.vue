@@ -6,15 +6,10 @@
 
 <script>
 import * as Three from 'three'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
-import { BloomPass } from 'three/examples/jsm/postprocessing/BloomPass.js'
-import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js'
-import { FocusShader } from 'three/examples/jsm/shaders/FocusShader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-
 import { gsap } from 'gsap'
+
+import { useThree } from '@/composables/useThree'
 
 export default {
   props: {
@@ -26,23 +21,30 @@ export default {
     }
   },
   mounted() {
-    this.setAttributes()
-    this.setCamera()
-    this.setRenderer()
-    this.setScene()
-    this.setPostProcessing()
+    const three = useThree(this.$refs.canvas)
+    this.camera = three.camera
+    this.scene = three.scene
+    this.renderer = three.renderer
+    this.composer = three.composer
+    this.controls = three.controls
+    this.light = three.light
 
     this.meshes = {}
-    this.createMesh(this.meshSource)
+    this.meshAnimations = {
+      shrink: {},
+      explode: {}
+    }
+    this.addMesh(this.meshSource)
 
-    window.addEventListener('resize', this.onWindowResize, false)
+    window.addEventListener('resize', this.onWindowResize)
+    // window.addEventListener('mousemove', this.moveCamera)
 
     this.animate()
   },
   watch: {
     meshSource: function(newMeshSource, oldMeshSource) {
       this.removeMesh(oldMeshSource)
-      this.createMesh(newMeshSource)
+      this.addMesh(newMeshSource)
     }
   },
   computed: {
@@ -51,38 +53,54 @@ export default {
     }
   },
   methods: {
-    setAttributes() {
-      this.camera = null
-      this.scene = null
-      this.renderer = null
-      this.meshes = {}
+    moveCamera(mouseEvent) {
+      const x = (mouseEvent.clientX / window.innerWidth) * 2 - 1
+      const y = (mouseEvent.clientY / window.innerHeight) * 2 - 1
+
+      console.log(x + ', ' + y)
+      this.camera.position.x = -x * 50
+      this.camera.position.y = y * 50 + 300
     },
     animate() {
       requestAnimationFrame(this.animate)
       if (this.activeMesh) {
         this.activeMesh.rotation.y += 0.01
       }
+      // this.controls.update()
       this.composer.render(0.01)
+      // this.renderer.render(this.scene, this.camera)
     },
-    createMesh(meshSource) {
+    async loadMesh(meshSource) {
+      const mesh = this.meshes[meshSource]
+      if (mesh) {
+        this.meshAnimations.explode[meshSource].kill()
+        this.meshAnimations.shrink[meshSource].kill()
+        mesh.geometry.setAttribute(
+          'position',
+          mesh.geometry.attributes.initialPosition.clone()
+        )
+        mesh.material.size = 2
+        return mesh
+      }
+
       const loader = new OBJLoader()
-      loader.load(meshSource, obj => {
-        const positions = this.combineBuffer(obj)
-
-        const geometry = new Three.BufferGeometry()
-        geometry.setAttribute('position', positions.clone())
-        geometry.setAttribute('initialPosition', positions.clone())
-        geometry.attributes.position.setUsage(Three.DynamicDrawUsage)
-        const material = new Three.PointsMaterial({
-          size: 2,
-          color: '#666666'
-        })
-
-        const mesh = new Three.Points(geometry, material)
+      const obj = await loader.loadAsync(meshSource)
+      const positions = this.combineBuffer(obj)
+      const geometry = new Three.BufferGeometry()
+      geometry.setAttribute('position', positions.clone())
+      geometry.setAttribute('initialPosition', positions.clone())
+      geometry.attributes.position.setUsage(Three.DynamicDrawUsage)
+      const material = new Three.PointsMaterial({
+        size: 2,
+        color: '#666666'
+      })
+      return new Three.Points(geometry, material)
+    },
+    addMesh(meshSource) {
+      this.loadMesh(meshSource).then(mesh => {
         this.meshes[meshSource] = mesh
         this.activeMeshSource = meshSource
-
-        this.scene.add(this.meshes[meshSource])
+        this.scene.add(mesh)
         this.camera.lookAt(this.scene.position)
       })
     },
@@ -91,54 +109,29 @@ export default {
         .array
       const finalArray = Float32Array.from(
         { length: initialArray.length },
-        () => Math.random() * 1000 - 500
+        () => Math.random() * 100 - 50
       )
-      gsap.to(initialArray, {
+      this.activeMeshSource = ''
+      this.meshAnimations.explode[meshSource] = gsap.to(initialArray, {
         endArray: finalArray,
-        duration: 1,
+        duration: 2,
         onUpdate: () =>
           (this.meshes[
             meshSource
           ].geometry.attributes.position.needsUpdate = true),
-        onComplete: () => this.scene.remove(this.meshes[meshSource])
+        onComplete: () => {
+          if (this.activeMeshSource != meshSource) {
+            this.scene.remove(this.meshes[meshSource])
+          }
+        }
       })
-
-      this.activeMeshSource = ''
-    },
-    setScene() {
-      this.scene = new Three.Scene()
-      this.scene.background = new Three.Color(0x000000, 0)
-    },
-    setCamera() {
-      let aspect = window.innerWidth / window.innerHeight
-      this.camera = new Three.PerspectiveCamera(75, aspect, 0.1, 1000)
-      this.camera.position.z = 200
-      this.camera.position.y = 250
-    },
-    setRenderer() {
-      this.renderer = new Three.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        canvas: this.$refs.canvas
-      })
-      this.renderer.setClearColor(0x000000, 0)
-      this.renderer.setPixelRatio(window.devicePixelRatio)
-      this.renderer.setSize(window.innerWidth, window.innerHeight)
-    },
-    setPostProcessing() {
-      const renderModel = new RenderPass(this.scene, this.camera)
-      const effectBloom = new BloomPass(0.75)
-      const effectFilm = new FilmPass(0.5, 0.5, 1448, false)
-      const effectFocus = new ShaderPass(FocusShader)
-
-      this.composer = new EffectComposer(this.renderer)
-
-      this.composer.addPass(renderModel)
-      this.composer.addPass(effectBloom)
-      this.composer.addPass(effectFilm)
-      console.log(effectFilm)
-      console.log(effectBloom)
-      this.composer.addPass(effectFocus)
+      this.meshAnimations.shrink[meshSource] = gsap.to(
+        this.meshes[meshSource].material,
+        {
+          size: 0,
+          duration: 1
+        }
+      )
     },
     combineBuffer(model) {
       let count = 0

@@ -52,17 +52,17 @@ export default {
       {
         name: 'Musings',
         icon: 'history_edu',
-        mesh: './man.obj'
+        mesh: './tree.obj'
       },
       {
         name: 'Publications',
         icon: 'school',
-        mesh: './woman.obj'
+        mesh: './emerald.obj'
       },
       {
         name: 'Resume',
         icon: 'business_center',
-        mesh: './man.obj'
+        mesh: './ninja.obj'
       }
     ]
     return {

@@ -7,8 +7,14 @@
     :mousewheel="true"
     :parallax="true"
     :pagination="pagination"
+    @slideChange="onPageChange"
   >
-    <background class="parallax-bg" data-swiper-parallax="-30%" />
+    <background
+      :meshSource="meshSource"
+      :activePageIndex="activePageIndex"
+      :numberOfPages="pages.length"
+      class="background"
+    />
     <div class="swiper-pagination" />
     <swiper-slide v-for="page in pages" :key="page.name">{{
       page.name
@@ -20,14 +26,9 @@
 import Background from './Background.vue'
 
 import { Swiper, SwiperSlide } from 'swiper/vue'
-import SwiperCore, {
-  Navigation,
-  Pagination,
-  Mousewheel,
-  Parallax
-} from 'swiper'
+import SwiperCore, { Navigation, Pagination, Mousewheel } from 'swiper'
 
-SwiperCore.use([Navigation, Pagination, Mousewheel, Parallax])
+SwiperCore.use([Navigation, Pagination, Mousewheel])
 
 export default {
   components: {
@@ -40,23 +41,28 @@ export default {
     var pages = [
       {
         name: 'Home',
-        icon: 'home'
+        icon: 'home',
+        mesh: './man.obj'
       },
       {
         name: 'Projects',
-        icon: 'build'
+        icon: 'build',
+        mesh: './woman.obj'
       },
       {
         name: 'Musings',
-        icon: 'history_edu'
+        icon: 'history_edu',
+        mesh: './man.obj'
       },
       {
         name: 'Publications',
-        icon: 'school'
+        icon: 'school',
+        mesh: './woman.obj'
       },
       {
         name: 'Resume',
-        icon: 'business_center'
+        icon: 'business_center',
+        mesh: './man.obj'
       }
     ]
     return {
@@ -73,7 +79,21 @@ export default {
             '</i> </span>'
           )
         }
-      }
+      },
+      activePageIndex: 0
+    }
+  },
+  methods: {
+    onPageChange(swiper) {
+      this.activePageIndex = swiper.activeIndex
+    }
+  },
+  computed: {
+    meshSource: function() {
+      return this.pages[this.activePageIndex].mesh
+    },
+    pageName: function() {
+      return this.pages[this.activePageIndex].name
     }
   }
 }
@@ -90,13 +110,12 @@ body {
 .swiper-container {
   width: 100vw;
   height: 100vh;
-  background: rgb(73, 73, 73);
+  background: rgb(153, 79, 79);
 }
 .swiper-slide {
   text-align: center;
   display: flex;
   justify-content: center;
-  // align-items: center;
   color: #ffffff;
 }
 
@@ -116,7 +135,7 @@ body {
     text-align: center;
     text-justify: center;
     opacity: 0.4;
-    background: rgb(32, 32, 32);
+    background: rgb(131, 131, 131);
     color: rgba($color: #ffffff, $alpha: 1);
     margin: 15px 0 !important;
     position: relative;
@@ -125,7 +144,6 @@ body {
 
     &-active {
       opacity: 0.8;
-      // color: rgba($color: #000000, $alpha: 1);
       background: rgba($color: #000000, $alpha: 0);
       transition: 1s;
       transform: scale(1);
@@ -134,11 +152,11 @@ body {
   }
 }
 
-.parallax-bg {
+.background {
   position: absolute;
   left: 0;
   top: 0;
-  width: 100%;
-  height: 150% !important;
+  width: 100vw;
+  height: 100vh;
 }
 </style>

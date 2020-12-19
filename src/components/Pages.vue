@@ -16,14 +16,23 @@
       class="background"
     />
     <div class="swiper-pagination" />
-    <swiper-slide v-for="page in pages" :key="page.name">{{
-      page.name
-    }}</swiper-slide>
+    <swiper-slide v-for="page in pages" :key="page.name">
+      <div class="p-grid">
+        <h1>Title</h1>
+      </div>
+      <div class="p-grid">
+        <card class="p-col" :title="page.name" content="test2" />
+      </div>
+      <div class="p-grid">
+        <card class="p-col" :title="page.icon" content="test2" />
+      </div>
+    </swiper-slide>
   </swiper>
 </template>
 
 <script>
 import Background from './Background.vue'
+import Card from './Card.vue'
 
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import SwiperCore, { Navigation, Pagination, Mousewheel } from 'swiper'
@@ -34,7 +43,8 @@ export default {
   components: {
     Swiper,
     SwiperSlide,
-    Background
+    Background,
+    Card
   },
 
   data() {
@@ -113,8 +123,9 @@ body {
   background: rgb(153, 79, 79);
 }
 .swiper-slide {
+  width: 100vw;
+  height: 100vh;
   text-align: center;
-  display: flex;
   justify-content: center;
   color: #ffffff;
 }
